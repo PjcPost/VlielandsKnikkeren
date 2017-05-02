@@ -3,6 +3,9 @@
     <head>
         <title>VlielandsKnikkeren test</title>
     	<style>
+			body{
+				margin:0px;
+			}
 			#cardButton{
 				float:left;
 			}
@@ -82,19 +85,17 @@
 		
 		elements.forEach(function(element) {
 			ctx.fillStyle = '#000000';
-			ctx.fillRect(element.top, element.left, 15,15);
+			ctx.fillRect(element.left,element.top, 15,15);
 		});
 
 		var clickFunction = function(){
 			var x = event.pageX - elemLeft;
 			var y = event.pageY - elemTop;
-			var i = 1;
 			console.log(x + ' x and y is ' + y);
 			elements.forEach(function(element) {	
 				if (y > element.top && y < element.top + 15 && x > element.left && x < element.left + 15) {
 					marbleClicked(element.name);
 				}
-				i++;
 			});
 		};
 
@@ -154,7 +155,7 @@
 					//add card image
 					var cardImage = cardDeck[cardName].image;
 					img[cardName] = new Image();
-					img[cardName].src = "/client/images/test/"+ cardImage +".png";
+					img[cardName].src = "/client/images/Cards/"+ cardImage +".png";
 
 					//create the card
 					var div = document.createElement('div');
