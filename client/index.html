@@ -1,0 +1,226 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>VlielandsKnikkeren test</title>
+    	<style>
+			#cardButton{
+				float:left;
+			}
+			.notPosible{
+				opacity: .9;
+			}
+		</style>
+	</head>
+<body>
+	
+	<div id="signDiv">
+        Username: <input id="signDiv-username" type="text"></input><br />
+        Password: <input id="signDiv-Password" type="password"></input><br />
+        <button id="signDiv-signIn">Sign in</button>
+        <button id="signDiv-signUp">Sign up</button>
+    </div>
+    
+	<div id="gameDiv" style="display:none;">
+		<canvas id="canvas" width="918px" height="917px"></canvas>
+		<div id="chat-box" style="float:right">
+			<div id="chat-text" style="width:500px;height:100px;overflow-y:scroll">
+				<div>Hello!</div>
+			</div>
+			<form id="chat-form">
+				<input id="chat-input" type="text" style+"width:500px">
+			</form>
+		</div>
+		<div id="cards">
+		</div>
+	</div>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script>
+	"use strict";
+	var socket = io();
+
+	//images
+	var img = {};
+	img.bord = new Image();
+	img.bord.src = "/client/images/bord3.png";
+
+	//canvas
+	var canvas = document.getElementById('canvas');
+	var ctx = canvas.getContext("2d")
+	
+	//Marble postion
+	socket.on('sendPosition' , function(marbles){
+		ctx.clearRect(0, 0, 918, 917);
+		ctx.drawImage(img.bord,0,0);
+		
+		//set the marbles on position.
+		for(var i in marbles){
+			ctx.fillStyle = marbles[i].color;
+			var marbleX = marbles[i].positionX;
+			var	marbleY	= marbles[i].positionY;
+			ctx.fillRect(marbleX-7.5, marbleY-7.5, 15,15);
+		}
+	});
+
+
+	//click event location for marbles
+	var elemLeft = canvas.offsetLeft;
+	var elemTop = canvas.offsetTop;
+	
+	socket.on('marbleClick' , function(marbles){
+		var elements = [];
+
+		for(var i in marbles){
+			var marbleX = marbles[i].positionX;
+			var	marbleY	= marbles[i].positionY;
+			console.log('marble y = ' + marbleY);
+				elements.push({
+					left: marbleX - 7.5,
+					top: marbleY - 7.5,
+					name: i,
+				});
+		};
+		
+		elements.forEach(function(element) {
+			ctx.fillStyle = '#000000';
+			ctx.fillRect(element.top, element.left, 15,15);
+		});
+
+		var clickFunction = function(){
+			var x = event.pageX - elemLeft;
+			var y = event.pageY - elemTop;
+			var i = 1;
+			console.log(x + ' x and y is ' + y);
+			elements.forEach(function(element) {	
+				if (y > element.top && y < element.top + 15 && x > element.left && x < element.left + 15) {
+					marbleClicked(element.name);
+				}
+				i++;
+			});
+		};
+
+		// Add event listener for `click` at the canvas on the marbles.
+		canvas.addEventListener('click', clickFunction);
+		
+		//delete click event listner fuction
+		var clickDelete = function(){
+			canvas.removeEventListener('click', clickFunction);
+		};
+	});
+
+	//marble clicked function
+	var cardChosen = false;
+	var marbleName = 'empty';
+	var marbleClicked = function(marbleName){
+		if(cardChosen === false){
+			alert('Please pick a card first, selected ' + marbleName);
+		}
+		else{
+			socket.emit('getCard', cardChosen, marbleName);
+			cardChosen = false;
+			marbleName = 'empty';
+			//clickDelete();
+		}
+	}
+
+	//On clicking a card
+	var chosenCard = function(card, divNumber){
+		cardChosen = "card" + card;
+		var cardDivId = divNumber;
+		document.getElementById(cardDivId).style.border = "5px solid red";
+	}
+
+	//show cards + get turn
+	socket.on('cards', function(user, cardDeck){
+		
+		//create hand turn
+		var createHand = function() {
+			var onclick;
+			for(var i = 0; i < 5; i++){
+				if(user.cards[i] !== ''){
+					var cardNumber = user.cards[i];
+					var cardName = "card" + user.cards[i];
+					//create onclick event if user turn is true
+					if(user.turn){
+						onclick = 'onclick="chosenCard('+ user.cards[i] +', '+ i +')"';
+					}
+					else if(typeof cardNumber === 'string' && cardNumber.slice(-1) === '*'){
+						onclick = '';
+						div.className = 'notPosible';
+						var cardName = "card" + user.cards[i].slice(-1);
+					}
+					else{
+						onclick = '';
+					}
+					//add card image
+					var cardImage = cardDeck[cardName].image;
+					img[cardName] = new Image();
+					img[cardName].src = "/client/images/test/"+ cardImage +".png";
+
+					//create the card
+					var div = document.createElement('div');
+					div.id = 'cardButton';
+					div.innerHTML = '<img id="'+ i +'" class="card" src="'+ img[cardName].src +'" height="150" size="150" '+onclick+'>';          
+					document.getElementById('cards').appendChild(div);
+				}
+			}
+		}
+
+		createHand();
+	});
+
+	//signIn
+	var signDiv = document.getElementById('signDiv');
+	var signDivUsername = document.getElementById('signDiv-username');
+	var signDivPassword = document.getElementById('signDiv-Password');
+	var signDivSignIn = document.getElementById('signDiv-signIn');
+	var signDivSignUp = document.getElementById('signDiv-signUp');
+
+	signDivSignIn.onclick = function(){
+		socket.emit('signIn', {username:signDivUsername.value, password:signDivPassword.value});
+	};
+	signDivSignUp.onclick = function(){
+		socket.emit('signUp', {username:signDivUsername.value, password:signDivPassword.value});
+	};
+
+	socket.on('signInResponse', function(data){
+		if(data.succes){
+			signDiv.style.display = 'none';
+			gameDiv.style.display = 'inline-block'
+		}
+		else
+			alert('Sign in unsuccessful');
+	});
+
+	socket.on('signUpResponse', function(data){
+		if(data.succes){
+			alert('Sign up Succesfull')
+		}
+		else
+			alert('Sign up unsuccessfull');
+	});
+	
+	//Chat
+	var chatText = document.getElementById('chat-text');
+	var chatForm = document.getElementById('chat-form');
+	var chatInput = document.getElementById('chat-input');
+	
+	socket.on('addToChat' , function(data){
+		chatText.innerHTML += '<div>' + data + '</div>';
+	});
+	
+	socket.on('evalAnswer' , function(data){
+		console.log(data);
+	});
+
+	chatForm.onsubmit = function(e){
+		e.preventDefault();
+		if(chatInput.value[0] === '/') {
+			socket.emit('evalServer', chatInput.value.slice(1));
+		}
+		else{
+			socket.emit('sendMsgToServer', chatInput.value);
+		}
+		chatInput.value = "";
+	};
+
+	</script>
